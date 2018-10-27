@@ -1,5 +1,6 @@
 var mysql = require("mysql");
 var inquirer = require("inquirer");
+var Table = require("cli-table");
 
 var connection = mysql.createConnection({
   host: "localhost",
@@ -15,19 +16,28 @@ connection.connect(function(err) {
   afterConnection();
 });
 
+//import Table from 'cli-table';
 
 function afterConnection(){
 
 
-    console.log("Selecting all products...\n");
+    console.log("Items available in the inventory...");
     connection.query("SELECT * FROM products", function(err, res) {
         if (err) throw err;
-        console.log("Item ID \t Product Name \t\t Price");
+        const table = new Table({
+            head: ['Item ID', 'Product Name', 'Price']
+          , colWidths: [10, 50, 10]
+        });
+
         for (var i=0; i<res.length; i++) {
-            console.log(res[i].item_id+"\t\t"+res[i].product_name+"\t\t"+res[i].price);
-            
+            table.push(
+                [res[i].item_id,res[i].product_name,res[i].price]
+            );
         }
     
+        console.log(table.toString());
+
+        console.log("Enter product ID and Quantity");
         inquirer.prompt([
             {
             type: "input",
@@ -48,19 +58,17 @@ function afterConnection(){
               }
             ], function(err, res) {
                 if (err) throw err;
-
-                console.log(res);
-
                 if(res[0].stock_quantity >= answers.quantity) {
                     connection.query("UPDATE products set ? where ?",[
                         {
-                            stock_quantity: res[0].stock_quantity-answers.quantity
+                            stock_quantity: res[0].stock_quantity-answers.quantity,
+                            product_sales: res[0].product_sales + (answers.quantity*res[0].price)
                         },
                         {
                             item_id: answers.id
                         }
                     ],function(err, update_res) {
-                        console.log("Item purchase successfully. Your cost is $"+answers.quantity*res[0].price);
+                        console.log("Item purchased successfully. Your cost is $"+answers.quantity*res[0].price);
                         connection.end();
                     });
                     
